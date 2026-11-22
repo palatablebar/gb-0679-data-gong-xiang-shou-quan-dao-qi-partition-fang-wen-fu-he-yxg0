@@ -35,6 +35,11 @@ def create_app():
     def history(): return {"runs":store.history()}
     @application.get("/api/runs/<run_id>")
     def run_detail(run_id): return store.get(run_id)
+    @application.get("/api/runs/<run_id>/takeover")
+    def run_takeover(run_id):
+        run=store.get(run_id)
+        state=run.get("takeover") or {}
+        return {"run_id":run_id,"version":run["version"],"decision":run["decision"],"conclusion":state}
     @application.post("/api/runs/<run_id>/review")
     def review(run_id):
         p=request.get_json(silent=True) or {}
@@ -44,6 +49,8 @@ def create_app():
     def archive(run_id):
         from app.archive import build_archive
         run=store.get(run_id)
+        if (run.get("takeover") or {}).get("status")=="待核":
+            raise DomainError("SNAPSHOT_PENDING","授权快照结论待核，不能导出证据",409)
         return application.response_class(build_archive(run),mimetype="text/csv",headers={"Content-Disposition":'attachment; filename="evidence.csv"'})
     for index,(slug,title) in enumerate(MODULES,1):
         module=importlib.import_module(f"app.modules.m{index}_{slug}.handler")

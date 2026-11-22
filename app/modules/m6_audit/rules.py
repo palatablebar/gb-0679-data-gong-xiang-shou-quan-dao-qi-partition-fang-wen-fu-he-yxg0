@@ -1,6 +1,7 @@
 from decimal import Decimal
 from app.reasons import sources
 from app.errors import DomainError
+from app import snapshot
 def evaluate(rows,context):
     intake=context.get("intake")
     bad=context.get("quarantine",[])
@@ -15,6 +16,7 @@ def evaluate(rows,context):
     output=[]
     for row in rows:
         expected=Decimal(str(row.get("expected","0")));reported=Decimal(str(row.get("reported","0")))
-        output.append({**row,"difference":str(expected-reported),"status":"通过" if expected==reported else "差异"})
+        output.append(snapshot.stamp({**row,"difference":str(expected-reported),"status":"通过" if expected==reported else "差异"},context))
     m.update(expected_total=str(sum((Decimal(str(r.get("expected","0"))) for r in rows),Decimal(0))),reported_total=str(sum((Decimal(str(r.get("reported","0"))) for r in rows),Decimal(0))),differences=sum(r["status"]=="差异" for r in output))
+    m.update(snapshot.metrics(context))
     return {"rows":output,"quarantine":[],"metrics":m}

@@ -13,6 +13,7 @@
 | M5 分区判定 | 查看并运行分区判定 | `/api/partitions` | `app/modules/m5_partitions/rules.py` | `tests/test_m5.py` |
 | M6 访问对账 | 查看并运行访问对账 | `/api/audit` | `app/modules/m6_audit/rules.py` | `tests/test_m6.py` |
 | M7 审计归档 | 查看并运行审计归档 | `/api/seals` | `app/modules/m7_seals/rules.py` | `tests/test_m7.py` |
+| M8 快照接管 | 查看并运行快照接管 | `/api/takeover` | `app/modules/m8_takeover/rules.py` | `tests/test_m8.py` |
 
 ## 陷阱登记
 
@@ -29,6 +30,10 @@
 | TRAP-07 | 上游结果空值 | 误报拒绝 | 隔离缺失 | `app/values.py` | `tests/test_m3.py::test_real_missing_decision_not_zero` |
 | TRAP-19 | 允许与拒绝重叠 | 后写覆盖 | 拒绝优先且排序证据 | `app/modules/m4_conflicts/rules.py` | `tests/test_m4.py::test_deny_priority_counterexample` |
 | TRAP-23 | 授权到期点 | 多放行一次 | 半开生效窗 | `app/modules/m3_grants/rules.py` | `tests/test_m3.py::test_expiry_endpoint_excluded` |
+| TRAP-31 | 主用故障后直接采用滞后灾备 | 放行已撤回的越权访问 | 灾备须水位证明完整且校验摘要一致才接管，否则待核 | `app/modules/m8_takeover/rules.py` | `tests/test_m8.py::test_lagging_dr_watermark_stays_pending` |
+| TRAP-32 | 同一批重试重复定版 | 多套快照结论并存 | 每批唯一结论按批次落库，重试复用 | `app/store.py` | `tests/test_m8.py::test_retry_same_batch_does_not_add_conclusion` |
+| TRAP-33 | 接管切换失败 | 覆盖旧版快照 | 结论待核并保留旧版快照与原裁决依据 | `app/modules/m8_takeover/rules.py` | `tests/test_m8.py::test_failed_switch_retains_old_snapshot_and_basis` |
+| TRAP-34 | 下游各算各的快照 | 访问裁决、分区、对账、导出口径不一 | 统一引用批次结论，归档校验引用一致 | `app/snapshot.py` | `tests/test_m8.py::test_all_stages_reference_single_conclusion` |
 
 ## 对账规则
 
@@ -37,3 +42,5 @@
 ## 已知不覆盖
 
 4MB以上文件需预先按业务键分批；不模拟生产支付与外部回调。人工复核只变更批次状态，不改写原始记录。
+
+接管只依据调用方提供的快照与策略，不主动探测主用节点或水位服务。撤回延续检查仅作旁证列出候选快照相对旧版快照缺失的显式拒绝，不单独改变接管门槛。
